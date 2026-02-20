@@ -86,13 +86,75 @@ dotnet run -- 127.0.0.1.1.1 851
    sudo systemctl restart snmpd
    ```
 
-## Deployment to Debian
-
-To build a single executable that runs on Linux without needing .NET installed:
+## Deployment and test on Beckhoff Realtime Linux
 
 1. Run the publish command:
    ```bash
-   dotnet publish -r linux-x64 -c Release --self-contained true -p:PublishSingleFile=true
+   dotnet publish -r linux-arm64 -c Release --self-contained true -p:PublishSingleFile=true
+   ```
+2. Copy to your device using scp
+   ```bash
+   scp .\bin\Release\net9.0\linux-arm64\publish\dotnet-snmp-tc3-bridge Administrator@<ip>:/home/Administrator/
+   ```
+3. Make it executable:
+   ```bash
+   chmod +x dotnet-snmp-tc3-bridge
+   ```
+4. Run:
+   For locally running TwinCAT
+
+   ```bash
+   ./dotnet-snmp-tc3-bridge
+   ```
+
+   For remote TwinCAT
+
+   ```bash
+   # Example, AMS_NET_ID="169.254.2.1.1.1" ADS_PORT="851" ./dotnet-snmp-tc3-bridge
+   AMS_NET_ID="<AmsNetId>" ADS_PORT="<port>" ./dotnet-snmp-tc3-bridge
+   ```
+
+## Convert to service on Beckhoff Realtime Linux
+
+The above steps above must have been completed first.
+
+1. Log into your Debian machine. Move the executable to a permanent directory and make it executable:
+   ```bash
+   sudo mkdir /opt/snmp-bridge
+   sudo mv ~/dotnet-snmp-tc3-bridge /opt/snmp-bridge/
+   sudo chmod +x /opt/snmp-bridge/dotnet-snmp-tc3-bridge
+   ```
+2. Create a systemd service file to run the bridge automatically in the background:
+   ```bash
+   sudo nano /etc/systemd/system/snmp-bridge.service
+   ```
+3. Paste the following configuration, ensuring you update the AMS_NET_ID to match your actual PLC:
+
+   ```toml
+   [Unit]
+   Description=SNMP to TwinCAT ADS Bridge
+   After=network.target
+
+   [Service]
+   Type=simple
+   User=root
+   ExecStart=/opt/snmp-bridge/dotnet-snmp-tc3-bridge
+   Restart=always
+   RestartSec=10
+
+   # Configuration Variables
+   Environment="AMS_NET_ID=127.0.0.1.1.1"
+   Environment="ADS_PORT=851"
+
+   [Install]
+   WantedBy=multi-user.target
+   ```
+
+4. Enable and start the service:
+   ```bash
+   sudo systemctl daemon-reload
+   sudo systemctl enable snmp-bridge
+   sudo systemctl start snmp-bridge
    ```
 
 ## Deployment to Windows
