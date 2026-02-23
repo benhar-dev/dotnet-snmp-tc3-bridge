@@ -16,7 +16,11 @@ Please note, this is not production ready, but may be used as a base for ideas o
 
 ## Screenshot
 
+Example running on Windows
 ![image](./docs/images/Screenshot.gif)
+
+Example running on Beckhoff Realtime Linux (CX8290)
+![image](./docs/images/ScreenshotSnmpCX.gif)
 
 ## TwinCAT Project Requirements
 
