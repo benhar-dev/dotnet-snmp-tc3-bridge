@@ -86,7 +86,7 @@ dotnet run -- 127.0.0.1.1.1 851
    sudo systemctl restart snmpd
    ```
 
-## Deployment and test on Beckhoff Realtime Linux
+## Deployment and test on Beckhoff Realtime Linux on a CX8290
 
 1. Run the publish command:
    ```bash
@@ -138,7 +138,7 @@ The above steps above must have been completed first.
    [Service]
    Type=simple
    User=root
-   ExecStart=/opt/snmp-bridge/dotnet-snmp-tc3-bridge
+   ExecStart=/opt/snmp-bridge/dotnet-snmp-tc3-bridge ${AMS_NET_ID} ${ADS_PORT}
    Restart=always
    RestartSec=10
 
@@ -151,10 +151,16 @@ The above steps above must have been completed first.
    ```
 
 4. Enable and start the service:
+
    ```bash
    sudo systemctl daemon-reload
    sudo systemctl enable snmp-bridge
    sudo systemctl start snmp-bridge
+   ```
+
+5. Check the service is running:
+   ```bash
+   sudo systemctl status snmp-bridge
    ```
 
 ## Deployment to Windows
@@ -166,3 +172,37 @@ To create a standalone executable that doesn't require a .NET installation:
    ```bash
    dotnet publish -r win-x64 -c Release --self-contained true -p:PublishSingleFile=true -p:IncludeNativeLibrariesForSelfExtract=true
    ```
+
+## Future Improvements & Contributions
+
+This project is currently a functional "base" bridge. If you are looking to contribute or take this to a production level, here are the key areas that need attention:
+
+1. Dynamic Data Type Mapping
+   Current State: Data is written to the PLC primarily as strings using .ToString().
+
+   Goal: Use the TwinCAT IType information to automatically cast SNMP responses to the correct PLC primitive (e.g., Integer32 to INT, Gauge32 to REAL, OctetString to STRING).
+
+2. SNMP Version Support (v2c & v3)
+   Current State: Hardcoded to SNMP v1.
+
+   Goal: Support VersionCode.V2 for larger counters and V3 for encrypted communication. This should be configurable via a new PLC attribute like {attribute 'SnmpVersion' := '2'}.
+
+3. Scalability & Performance
+   Current State: Each job runs in its own PeriodicTimer loop.
+
+   Goal: Implement a Producer/Consumer pattern using System.Threading.Channels. This would allow a pool of worker threads to handle hundreds of SNMP requests efficiently without risking thread pool starvation.
+
+4. Health & Status Feedback
+   Current State: Errors are logged to the console.
+
+   Goal: Implement a "Status" handshake. If a poll fails, the bridge should attempt to write an error code or a "Data Valid" boolean to a corresponding PLC variable so the control logic can react to stale data.
+
+5. Configurable Port & Timeout
+   Current State: Port 161 and a 3000ms timeout are hardcoded.
+
+   Goal: Allow these to be overridden via PLC attributes (e.g., {attribute 'SnmpPort' := '162'}) for devices with non-standard configurations.
+
+6. Writing to SNMP (Set Requests)
+   Current State: Read-only (Poll loop).
+
+   Goal: Implement a "Write" path where the bridge monitors a PLC variable for changes and issues an SnmpSet command to the remote device.
